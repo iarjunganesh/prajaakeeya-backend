@@ -58,10 +58,10 @@ PostgreSQL and Redis, with media served from S3/CloudFront.
 
 ```mermaid
 flowchart LR
-  clients[API clients] -->|HTTPS /api/*| api[NestJS API\nPM2 cluster · EC2]
-  api --> db[Postgres\nRDS]
-  api --> redis[Redis\ncache + throttle]
-  api --> media[S3 + CloudFront\nmedia]
+  clients[API clients] -->|HTTPS /api/*| api[NestJS API<br/>PM2 cluster · EC2]
+  api --> db[Postgres<br/>RDS]
+  api --> redis[Redis<br/>cache + throttle]
+  api --> media[S3 + CloudFront<br/>media]
 ```
 
 - **Modular monolith.** Each feature is a self-contained NestJS module
