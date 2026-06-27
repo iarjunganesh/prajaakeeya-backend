@@ -11,9 +11,9 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { createKeyv } from "@keyv/redis";
 import Redis from "ioredis";
 
-import { randomUUID } from "crypto";
 import * as fs from "fs";
 import { req as stdReq } from "pino-std-serializers";
+import { genReqId } from "./logger/gen-req-id";
 
 import { validate } from "./config/env.validation";
 import { AuthModule } from "./auth/auth.module";
@@ -89,19 +89,7 @@ function resolveRedisUrl(): string | undefined {
     // (pino-pretty) in non-production environments.
     LoggerModule.forRoot({
       pinoHttp: {
-        genReqId: (req, res) => {
-          const existing = req.headers["x-request-id"];
-          const raw = Array.isArray(existing) ? existing[0] : existing;
-          const id =
-            typeof raw === "string" &&
-            raw.length > 0 &&
-            raw.length <= 128 &&
-            !/[\x00-\x1f]/.test(raw)
-              ? raw
-              : randomUUID();
-          res.setHeader("X-Request-Id", id);
-          return id;
-        },
+        genReqId,
         level:
           process.env.LOG_LEVEL ??
           (process.env.NODE_ENV === "production" ? "info" : "debug"),
