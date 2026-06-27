@@ -3,6 +3,7 @@
 > **Civic tech for Karnataka's democracy.** Voters discover election candidates in their constituency, interact with them directly, raise local issues, and cast votes. Candidates manage their profiles, schedule ward meetings, and engage their constituency. Built for scale — from a ward of 2,000 voters to a Lok Sabha constituency of 2 million.
 
 [![CI](https://github.com/prajaakeeya/prajaakeeya-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/prajaakeeya/prajaakeeya-backend/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/prajaakeeya/prajaakeeya-backend/graph/badge.svg)](https://codecov.io/gh/prajaakeeya/prajaakeeya-backend)
 
 [![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
