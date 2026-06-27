@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_GUARD, APP_FILTER } from "@nestjs/core";
 import { SentryModule, SentryGlobalFilter } from "@sentry/nestjs/setup";
 import { ConfigModule } from "@nestjs/config";
+import { LoggerModule } from "nestjs-pino";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { ThrottlerStorageRedisService } from "@nest-lab/throttler-storage-redis";
@@ -10,6 +11,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { createKeyv } from "@keyv/redis";
 import Redis from "ioredis";
 
+import { randomUUID } from "crypto";
 import * as fs from "fs";
 
 import { validate } from "./config/env.validation";
@@ -79,6 +81,44 @@ function resolveRedisUrl(): string | undefined {
     // Sentry instrumentation (no-op unless SENTRY_DSN is set).
     SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, validate }),
+
+    // Structured JSON logging via Pino. Each request is assigned a UUID
+    // (X-Request-Id header) that propagates to every log line within that
+    // request via pino-http's async context. Falls back to a debug transport
+    // (pino-pretty) in non-production environments.
+    LoggerModule.forRoot({
+      pinoHttp: {
+        genReqId: (req, res) => {
+          const existing = req.headers["x-request-id"];
+          const id = Array.isArray(existing)
+            ? existing[0]
+            : (existing ?? randomUUID());
+          res.setHeader("X-Request-Id", id);
+          return id;
+        },
+        level:
+          process.env.LOG_LEVEL ??
+          (process.env.NODE_ENV === "production" ? "info" : "debug"),
+        redact: {
+          paths: ["req.headers.authorization", "req.headers.cookie"],
+          remove: true,
+        },
+        transport:
+          process.env.NODE_ENV !== "production"
+            ? {
+                target: "pino-pretty",
+                options: {
+                  colorize: true,
+                  translateTime: "HH:MM:ss",
+                  ignore: "pid,hostname",
+                },
+              }
+            : undefined,
+        autoLogging: {
+          ignore: (req) => req.url === "/api/health",
+        },
+      },
+    }),
 
     // Enables @Cron schedulers (meeting/visit reminders).
     ScheduleModule.forRoot(),
