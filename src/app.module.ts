@@ -13,6 +13,7 @@ import Redis from "ioredis";
 
 import { randomUUID } from "crypto";
 import * as fs from "fs";
+import { req as stdReq } from "pino-std-serializers";
 
 import { validate } from "./config/env.validation";
 import { AuthModule } from "./auth/auth.module";
@@ -90,9 +91,14 @@ function resolveRedisUrl(): string | undefined {
       pinoHttp: {
         genReqId: (req, res) => {
           const existing = req.headers["x-request-id"];
-          const id = Array.isArray(existing)
-            ? existing[0]
-            : (existing ?? randomUUID());
+          const raw = Array.isArray(existing) ? existing[0] : existing;
+          const id =
+            typeof raw === "string" &&
+            raw.length > 0 &&
+            raw.length <= 128 &&
+            !/[\x00-\x1f]/.test(raw)
+              ? raw
+              : randomUUID();
           res.setHeader("X-Request-Id", id);
           return id;
         },
@@ -102,6 +108,18 @@ function resolveRedisUrl(): string | undefined {
         redact: {
           paths: ["req.headers.authorization", "req.headers.cookie"],
           remove: true,
+        },
+        serializers: {
+          req(req) {
+            const s = stdReq(req);
+            if (typeof s.url === "string") {
+              s.url = s.url.replace(
+                /([?&](?:token|access_token|secret|code)=)[^&]+/gi,
+                "$1[REDACTED]",
+              );
+            }
+            return s;
+          },
         },
         transport:
           process.env.NODE_ENV !== "production"
@@ -115,7 +133,7 @@ function resolveRedisUrl(): string | undefined {
               }
             : undefined,
         autoLogging: {
-          ignore: (req) => req.url === "/api/health",
+          ignore: (req) => (req.url ?? "").startsWith("/api/health"),
         },
       },
     }),
