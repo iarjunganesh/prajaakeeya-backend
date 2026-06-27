@@ -1,9 +1,22 @@
 import "reflect-metadata";
 import { ChatEventsService } from "./chat-events.service";
 
-describe("ChatEventsService", () => {
+// These tests exercise the in-process fallback path (no REDIS_HOST set, so
+// onModuleInit() is never called in unit tests). The Redis pub/sub path is
+// tested by the e2e suite which has a real Redis instance.
+describe("ChatEventsService (in-memory fallback)", () => {
+  let bus: ChatEventsService;
+
+  beforeEach(() => {
+    bus = new ChatEventsService();
+    // Do NOT call onModuleInit() — simulates the no-Redis local-dev path.
+  });
+
+  afterEach(() => {
+    bus.onModuleDestroy();
+  });
+
   it("delivers events only to subscribers of the matching room", () => {
-    const bus = new ChatEventsService();
     const room7: any[] = [];
     const room9: any[] = [];
     const s7 = bus.forRoom(7).subscribe((e) => room7.push(e));
@@ -26,13 +39,23 @@ describe("ChatEventsService", () => {
   });
 
   it("does not replay past events to late subscribers", () => {
-    const bus = new ChatEventsService();
     bus.publish({ aspirantId: 7, type: "message.created", payload: { id: 1 } });
 
     const received: any[] = [];
     const sub = bus.forRoom(7).subscribe((e) => received.push(e));
     sub.unsubscribe();
 
-    expect(received).toHaveLength(0); // Subject is hot — no buffering of prior events
+    expect(received).toHaveLength(0); // Subject is hot — no buffering
+  });
+
+  it("stops delivering events after onModuleDestroy", () => {
+    const received: any[] = [];
+    bus.forRoom(7).subscribe((e) => received.push(e));
+
+    bus.publish({ aspirantId: 7, type: "message.created", payload: { id: 1 } });
+    bus.onModuleDestroy();
+    bus.publish({ aspirantId: 7, type: "message.created", payload: { id: 2 } });
+
+    expect(received).toHaveLength(1);
   });
 });
